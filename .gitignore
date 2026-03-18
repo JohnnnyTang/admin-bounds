@@ -1,0 +1,39 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# uv
+.python-version
+
+# Data files (large geospatial data — use origin-data/ only locally)
+origin-data/china/
+origin-data/cache/
+*.geojson
+# Exception: bundled package data must be tracked
+!src/adminbounds/data/*.geojson
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.gpkg
+*.sqlite
+*.db
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json

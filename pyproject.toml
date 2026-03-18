@@ -1,0 +1,53 @@
+[project]
+name = "adminbounds"
+version = "0.1.0"
+description = "Administrative boundary semantic relation inference for geospatial datasets"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [
+    { name = "GeoVecPrism Contributors" },
+]
+keywords = [
+    "geospatial",
+    "administrative boundaries",
+    "PostGIS",
+    "spatial inference",
+    "GADM",
+    "GIS",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Database",
+]
+dependencies = [
+    "geopandas>=0.14",
+    "psycopg2-binary>=2.9",
+    "sqlalchemy>=2.0",
+    "python-dotenv>=1.0",
+    "tqdm>=4.66",
+    "shapely>=2.0",
+    "pydantic-settings>=2.0",
+    "geoalchemy2>=0.18.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/JohnnnyTang/admin-bounds"
+Repository = "https://github.com/JohnnnyTang/admin-bounds"
+"Bug Tracker" = "https://github.com/JohnnnyTang/admin-bounds/issues"
+
+[project.scripts]
+adminbounds = "adminbounds.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adminbounds"]
