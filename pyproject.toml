@@ -1,12 +1,12 @@
 [project]
 name = "adminbounds"
-version = "0.2.0"
+version = "0.3.0"
 description = "Administrative boundary semantic relation inference for geospatial datasets"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [
-    { name = "GeoVecPrism Contributors" },
+    { name = "Johnny Tang" },
 ]
 keywords = [
     "geospatial",
@@ -36,6 +36,8 @@ dependencies = [
     "pydantic-settings>=2.0",
     "geoalchemy2>=0.18.4",
     "pip>=26.0.1",
+    "build>=1.4.0",
+    "twine>=6.2.0",
 ]
 
 [project.urls]
