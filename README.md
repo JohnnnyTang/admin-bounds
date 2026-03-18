@@ -77,12 +77,12 @@ cp .env.example .env
 Edit `.env` with your database credentials:
 
 ```dotenv
-GEO_ADMIN_DB_HOST=localhost
-GEO_ADMIN_DB_PORT=5432
-GEO_ADMIN_DB_NAME=geo_prism
-GEO_ADMIN_DB_USER=postgres
-GEO_ADMIN_DB_PASSWORD=your_password_here
-GEO_ADMIN_DB_SCHEMA=public
+ADMINBOUNDS_DB_HOST=localhost
+ADMINBOUNDS_DB_PORT=5432
+ADMINBOUNDS_DB_NAME=your_database
+ADMINBOUNDS_DB_USER=your_username
+ADMINBOUNDS_DB_PASSWORD=your_password_here
+ADMINBOUNDS_DB_SCHEMA=adminbounds
 ```
 
 **3. Ensure PostGIS is enabled**
@@ -155,15 +155,17 @@ adminbounds upload path/to/file.geojson my_table --if-exists append
 
 ```bash
 adminbounds annotate --source-table sample_pois --geom-col geom
+adminbounds annotate --source-table myschema.sample_pois --geom-col geom   # schema-qualified
 adminbounds annotate --source-table sample_pois --geom-col geom --batch-size 200
 ```
 
-Resume-safe: only processes rows not yet present in `thematic_admin_relations`.
+`--source-table` accepts a plain table name (uses `public` schema by default) or a schema-qualified name (`myschema.mytable`). When schema-qualified, `--schema` is ignored. Resume-safe: only processes rows not yet present in `thematic_admin_relations`.
 
 ### Diagnose annotation issues
 
 ```bash
 adminbounds diagnose --source-table sample_pois --geom-col geom
+adminbounds diagnose --source-table myschema.sample_pois --geom-col geom
 ```
 
 ### Python API

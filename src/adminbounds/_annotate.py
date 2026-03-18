@@ -13,7 +13,7 @@ FETCH_SQL = """
 SELECT
     src.uuid                    AS feature_uuid,
     ST_AsText(src.{geom_col})   AS geom_wkt
-FROM {schema}.{source_table} src
+FROM {qualified} src
 LEFT JOIN adminbounds.thematic_admin_relations tar
     ON tar.source_table = %(source_table)s
    AND tar.feature_uuid = src.uuid
@@ -44,6 +44,20 @@ ON CONFLICT (source_table, feature_uuid) DO NOTHING
 """
 
 
+def _resolve_table(source_table: str, schema: str) -> tuple[str, str]:
+    """Return (qualified_ref, table_key) from a potentially schema-qualified table name.
+
+    If source_table already contains a schema (e.g. "myschema.mytable"), that
+    schema takes precedence over the schema parameter. The returned table_key is
+    the fully qualified name used as the identifier in thematic_admin_relations.
+    """
+    if "." in source_table:
+        qualified = source_table
+    else:
+        qualified = f"{schema}.{source_table}"
+    return qualified, qualified
+
+
 def annotate_batch(
     conn,
     source_table: str,
@@ -52,7 +66,12 @@ def annotate_batch(
     batch_size: int,
     on_progress=None,
 ) -> int:
-    """Batch-annotate source table. Returns count of newly annotated rows."""
+    """Batch-annotate source table. Returns count of newly annotated rows.
+
+    source_table may be schema-qualified (e.g. "myschema.mytable"), in which
+    case the schema parameter is ignored.
+    """
+    qualified, table_key = _resolve_table(source_table, schema)
     conn.autocommit = False
     total_processed = 0
 
@@ -61,13 +80,13 @@ def annotate_batch(
             cur.execute(
                 f"""
                 SELECT COUNT(*)
-                FROM {schema}.{source_table} src
+                FROM {qualified} src
                 LEFT JOIN adminbounds.thematic_admin_relations tar
                     ON tar.source_table = %s
                    AND tar.feature_uuid = src.uuid
                 WHERE tar.id IS NULL AND src.{geom_col} IS NOT NULL
                 """,
-                (source_table,),
+                (table_key,),
             )
             remaining = cur.fetchone()[0]
             log.info("Rows to annotate: %d", remaining)
@@ -77,11 +96,10 @@ def annotate_batch(
         while True:
             fetch_sql = FETCH_SQL.format(
                 geom_col=geom_col,
-                schema=schema,
-                source_table=source_table,
+                qualified=qualified,
             )
             with conn.cursor() as cur:
-                cur.execute(fetch_sql, {"source_table": source_table, "batch_size": batch_size})
+                cur.execute(fetch_sql, {"source_table": table_key, "batch_size": batch_size})
                 rows = cur.fetchall()
 
             if not rows:
@@ -100,7 +118,7 @@ def annotate_batch(
                         cur.execute(
                             INSERT_SQL,
                             {
-                                "source_table": source_table,
+                                "source_table": table_key,
                                 "feature_uuid": str(feature_uuid),
                                 "relations":    relations_str,
                             },

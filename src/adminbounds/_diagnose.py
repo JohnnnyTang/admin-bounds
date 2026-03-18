@@ -9,8 +9,20 @@ FAIL = "  [FAIL]"
 WARN = "  [WARN]"
 
 
+def _resolve_table(source_table: str, schema: str) -> str:
+    """Return a fully qualified table reference, respecting an embedded schema prefix."""
+    if "." in source_table:
+        return source_table
+    return f"{qualified}"
+
+
 def diagnose(conn, source_table: str, geom_col: str, schema: str) -> dict:
-    """Run diagnostic checks. Returns structured result dict."""
+    """Run diagnostic checks. Returns structured result dict.
+
+    source_table may be schema-qualified (e.g. "myschema.mytable"), in which
+    case the schema parameter is ignored.
+    """
+    qualified = _resolve_table(source_table, schema)
     results = {}
     cur = conn.cursor()
 
@@ -36,13 +48,13 @@ def diagnose(conn, source_table: str, geom_col: str, schema: str) -> dict:
         print(f"  Level {row[0]}: {row[1]} rows")
     results["level_distribution"] = level_dist
 
-    print(f"\n=== 3. Source table: {schema}.{source_table} ===")
-    cur.execute(f"SELECT COUNT(*) FROM {schema}.{source_table} WHERE {geom_col} IS NOT NULL")
+    print(f"\n=== 3. Source table: {qualified} ===")
+    cur.execute(f"SELECT COUNT(*) FROM {qualified} WHERE {geom_col} IS NOT NULL")
     src_count = cur.fetchone()[0]
     results["source_non_null_geoms"] = src_count
     print(f"{PASS if src_count > 0 else FAIL} Non-null geometries: {src_count}")
 
-    cur.execute(f"SELECT DISTINCT ST_SRID({geom_col}) FROM {schema}.{source_table} WHERE {geom_col} IS NOT NULL LIMIT 5")
+    cur.execute(f"SELECT DISTINCT ST_SRID({geom_col}) FROM {qualified} WHERE {geom_col} IS NOT NULL LIMIT 5")
     srids = [r[0] for r in cur.fetchall()]
     results["source_srids"] = srids
     print(f"{PASS if srids == [4326] else FAIL} Geometry SRIDs in source table: {srids}")
@@ -55,7 +67,7 @@ def diagnose(conn, source_table: str, geom_col: str, schema: str) -> dict:
             ST_YMin(ST_Extent({geom_col})),
             ST_XMax(ST_Extent({geom_col})),
             ST_YMax(ST_Extent({geom_col}))
-        FROM {schema}.{source_table}
+        FROM {qualified}
         WHERE {geom_col} IS NOT NULL
     """)
     row = cur.fetchone()
@@ -72,7 +84,7 @@ def diagnose(conn, source_table: str, geom_col: str, schema: str) -> dict:
         SELECT COUNT(*)
         FROM adminbounds.admin_units au
         WHERE au.geom_bbox && (
-            SELECT ST_Extent({geom_col}) FROM {schema}.{source_table} WHERE {geom_col} IS NOT NULL
+            SELECT ST_Extent({geom_col}) FROM {qualified} WHERE {geom_col} IS NOT NULL
         )
     """)
     overlap_count = cur.fetchone()[0]
@@ -87,7 +99,7 @@ def diagnose(conn, source_table: str, geom_col: str, schema: str) -> dict:
             ST_AsText({geom_col})  AS wkt,
             ST_SRID({geom_col})    AS srid,
             ST_IsValid({geom_col}) AS is_valid
-        FROM {schema}.{source_table}
+        FROM {qualified}
         WHERE {geom_col} IS NOT NULL
         LIMIT 1
     """)
