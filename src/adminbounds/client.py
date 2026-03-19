@@ -70,11 +70,24 @@ class AdminBoundsClient:
         schema: str = "public",
         batch_size: int = 100,
         on_progress=None,
+        mode: str = "skip",
     ) -> int:
-        """Batch-annotate source table. Returns count of newly annotated rows."""
+        """Batch-annotate source table. Returns count of rows processed.
+
+        Args:
+            source_table: Table name, optionally schema-qualified (e.g. "myschema.mytable").
+            geom_col:     Geometry column name (default: "geom").
+            schema:       Schema to use if source_table is not schema-qualified (default: "public").
+            batch_size:   Rows to process per batch (default: 100).
+            on_progress:  Optional callback(processed, total).
+            mode:         Re-annotation strategy (default: "skip"):
+                          - "skip"    Only annotate rows with no existing entry.
+                          - "update"  Re-infer all rows, overwriting existing results.
+                          - "replace" Delete all existing results first, then annotate all.
+        """
         from ._annotate import annotate_batch
         conn = get_raw_connection(self._settings)
-        return annotate_batch(conn, source_table, geom_col, schema, batch_size, on_progress)
+        return annotate_batch(conn, source_table, geom_col, schema, batch_size, on_progress, mode)
 
     def infer(self, geometry) -> dict:
         """Call infer_admin_semantic_relation on a single Shapely geometry.

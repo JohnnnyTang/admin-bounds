@@ -58,10 +58,16 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # annotate
     p_annotate = sub.add_parser("annotate", help="Batch-annotate a source table")
-    p_annotate.add_argument("--source-table", required=True, help="Source table name")
+    p_annotate.add_argument("--source-table", required=True, help="Source table name (schema-qualified accepted, e.g. myschema.mytable)")
     p_annotate.add_argument("--geom-col",     default="geom", help="Geometry column (default: geom)")
-    p_annotate.add_argument("--schema",        default="public", help="Source table schema (default: public)")
+    p_annotate.add_argument("--schema",        default="public", help="Source table schema (default: public; ignored if --source-table is schema-qualified)")
     p_annotate.add_argument("--batch-size",   type=int, default=100, help="Rows per batch (default: 100)")
+    p_annotate.add_argument(
+        "--mode",
+        choices=["skip", "update", "replace"],
+        default="skip",
+        help="Re-annotation strategy: skip=new rows only (default), update=overwrite existing, replace=delete+rerun",
+    )
 
     # diagnose
     p_diagnose = sub.add_parser("diagnose", help="Diagnose annotation issues")
@@ -137,6 +143,7 @@ def main():
             geom_col=args.geom_col,
             schema=args.schema,
             batch_size=args.batch_size,
+            mode=args.mode,
         )
         print(f"Annotated {count} rows.")
 
