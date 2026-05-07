@@ -88,6 +88,35 @@ BEGIN
     v_input_area := ST_Area(v_input::GEOGRAPHY);
 
     -- -------------------------------------------------------------------------
+    -- Fast path for point geometries: containment instead of area metrics
+    -- -------------------------------------------------------------------------
+    IF ST_GeometryType(v_input) IN ('ST_Point', 'ST_MultiPoint') THEN
+        SELECT jsonb_agg(
+            jsonb_build_object('code', adcode, 'name', name, 'level', level)
+            ORDER BY level DESC
+        )
+        INTO v_contained
+        FROM adminbounds.admin_units
+        WHERE ST_Contains(geom, v_input);
+
+        v_contained := COALESCE(v_contained, '[]'::JSONB);
+
+        IF jsonb_array_length(v_contained) > 0 THEN
+            v_level_match := (v_contained -> 0 ->> 'level')::INTEGER;
+            v_confidence  := 1.0;
+        END IF;
+
+        RETURN jsonb_build_object(
+            'coincides_with',    '[]'::JSONB,
+            'intersects_with',   '[]'::JSONB,
+            'covers_children',   '[]'::JSONB,
+            'contained_by',      v_contained,
+            'admin_level_match', v_level_match,
+            'confidence',        ROUND(v_confidence::NUMERIC, 4)
+        );
+    END IF;
+
+    -- -------------------------------------------------------------------------
     -- Three-layer filtering + similarity metrics
     -- -------------------------------------------------------------------------
     FOR v_rec IN

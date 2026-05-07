@@ -28,7 +28,9 @@ admin_units table    →    infer_admin_semantic   →  thematic_admin_relations
 | `coincides_with` | Substantially overlaps a known boundary (IoU ≥ 0.85) | A polygon matching Beijing municipality exactly |
 | `intersects_with` | Partially overlaps units at the dominant level | A corridor crossing Nanjing and Suzhou |
 | `covers_children` | The geometry contains child-level units | A province polygon covering its cities |
-| `contained_by` | The ancestor chain above the matched unit | A city → its province → country |
+| `contained_by` | The ancestor chain above the matched unit — or the full containment chain for point features | A city → its province → country |
+
+Point and multipoint geometries are handled via a dedicated fast path: the function uses `ST_Contains` (point-in-polygon) instead of area-based metrics, and returns the full administrative containment chain (district → city → province → country) in `contained_by` with `confidence = 1.0`. `coincides_with`, `intersects_with`, and `covers_children` are always empty for points.
 
 **Stage 3 — Batch annotation** runs the inference function over every row of any PostGIS table and writes the results into `adminbounds.thematic_admin_relations`, keyed by `(source_table, feature_uuid)`.
 
@@ -481,16 +483,36 @@ SELECT adminbounds.infer_admin_semantic_relation(
 }
 ```
 
+**Example output (point geometry — district centre point in Shenzhen):**
+
+```json
+{
+  "coincides_with":    [],
+  "intersects_with":   [],
+  "covers_children":   [],
+  "contained_by":      [
+    {"code": "440304", "name": "福田区",        "level": 4},
+    {"code": "440300", "name": "深圳市",        "level": 3},
+    {"code": "440000", "name": "广东省",        "level": 2},
+    {"code": "100000", "name": "中华人民共和国", "level": 1}
+  ],
+  "admin_level_match": 4,
+  "confidence":        1.0
+}
+```
+
 **Three-layer spatial filter** (performance — avoids full-table geometry intersection):
 1. **Bounding box overlap** — GIST index scan, eliminates most candidates immediately
 2. **Convex hull intersection** — narrows the remaining candidates
 3. **Full geometry intersection** — precise check; uses simplified geometry for polygons with >500 vertices
 
-**Similarity metric** (for `coincides_with`, threshold IoU ≥ 0.85):
+**Similarity metric** (for `coincides_with`, threshold IoU ≥ 0.85, polygon features only):
 
 ```
 similarity = 0.5 × IoU + 0.3 × area_ratio + 0.2 × (1 − normalised_centroid_offset)
 ```
+
+**Point geometry handling:** Point and multipoint inputs bypass the area-based pipeline entirely. The function runs a direct `ST_Contains` query against `admin_units` (using the GIST index) and returns the full containment hierarchy in `contained_by`, ordered from finest to coarsest level. `admin_level_match` is set to the finest level found (e.g. `4` for a point inside a district). `confidence` is always `1.0` for exact containment.
 
 > **Note on GADM and `contained_by`:** The `contained_by` fallback in the PL/pgSQL function uses substring-based ancestor lookup tuned for 6-digit Chinese codes. For GADM GIDs, the primary parent-chain walkup (via the `parent_code` column) is used instead. Since `parent_code` is correctly populated for all GADM data, this works correctly for all countries.
 
