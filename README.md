@@ -67,32 +67,61 @@ uv sync          # or: pip install -e .
 
 ## Configuration
 
-The package reads database credentials from environment variables or a `.env` file in the working directory.
+`adminbounds` reads database credentials from `os.environ` only. The library never loads `.env` files on its own — that responsibility belongs to the calling application.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `ADMINBOUNDS_DB_HOST` | `localhost` | PostgreSQL host |
+| `ADMINBOUNDS_DB_PORT` | `5432` | PostgreSQL port |
+| `ADMINBOUNDS_DB_NAME` | `geo_prism` | Database name |
+| `ADMINBOUNDS_DB_USER` | `postgres` | Database user |
+| `ADMINBOUNDS_DB_PASSWORD` | *(empty)* | Database password |
+| `ADMINBOUNDS_DB_SCHEMA` | `public` | Default schema |
+
+### CLI users
+
+The CLI automatically loads a `.env` file from the current working directory before reading credentials:
 
 ```bash
-cp .env.example .env
+cp .env.example .env   # fill in your credentials
+adminbounds init-db    # CLI picks up the .env automatically
 ```
 
-Edit `.env`:
-
-```dotenv
-ADMINBOUNDS_DB_HOST=localhost
-ADMINBOUNDS_DB_PORT=5432
-ADMINBOUNDS_DB_NAME=your_database
-ADMINBOUNDS_DB_USER=your_username
-ADMINBOUNDS_DB_PASSWORD=your_password
-```
-
-All CLI commands and the Python client fall back to these variables if no explicit connection arguments are given. You can also pass credentials directly:
+You can also pass credentials directly on the command line:
 
 ```bash
 adminbounds --host localhost --dbname mydb --user postgres --password secret init-db
 ```
 
+### Python API / library users
+
+When using `AdminBoundsClient` in your own application, **your application is responsible for loading any `.env` file** before the client is instantiated:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()  # loads .env into os.environ before the library reads it
+
+from adminbounds import AdminBoundsClient
+client = AdminBoundsClient()
+```
+
+Or pass credentials explicitly — no environment variables needed at all:
+
 ```python
 from adminbounds import AdminBoundsClient
-c = AdminBoundsClient(host="localhost", dbname="mydb", user="postgres", password="secret")
+
+client = AdminBoundsClient(
+    host="localhost",
+    port=5432,
+    dbname="mydb",
+    user="postgres",
+    password="secret",
+)
 ```
+
+When `adminbounds` is a dependency of a larger application that manages its own config (e.g. `python-decouple`, `dynaconf`, or a cloud secrets manager), ensure `ADMINBOUNDS_DB_*` variables are present in `os.environ` before constructing `AdminBoundsClient`. No special integration is required.
 
 ---
 
@@ -299,7 +328,7 @@ c = AdminBoundsClient(
     password="secret",
 )
 
-# Or rely entirely on ADMINBOUNDS_DB_* environment variables / .env file
+# Or rely entirely on ADMINBOUNDS_DB_* environment variables
 c = AdminBoundsClient()
 ```
 

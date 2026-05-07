@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -7,7 +5,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ADMINBOUNDS_DB_",
-        env_file=".env",
         extra="ignore",
         populate_by_name=True,
     )
@@ -19,11 +16,6 @@ class Settings(BaseSettings):
     password: str = ""
     # 'schema' is reserved by Pydantic; use alias to read ADMINBOUNDS_DB_SCHEMA
     db_schema: str = Field(default="public", alias="schema", validation_alias="ADMINBOUNDS_DB_SCHEMA")
-
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
 
 
 def make_settings(**kwargs) -> Settings:
